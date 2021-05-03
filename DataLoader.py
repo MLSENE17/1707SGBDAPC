@@ -1,9 +1,11 @@
 from ttkwidgets import CheckboxTreeview
-import tkinter as tk
+from tkinter import *
+from tkinter.ttk import *
 from tkinter import messagebox
 import json
 import os
-class DataLoader(tk.Frame):
+from DbDataloader import *
+class DataLoader(Frame):
     def __init__(self,master):
         super().__init__(master)
         self.anne={}
@@ -12,24 +14,35 @@ class DataLoader(tk.Frame):
         self.master.resizable(width=False,height=True)
         self.tree = CheckboxTreeview(master,height=25)
         os.chdir("DonneJson")
-        with open("donne.json","r") as rf:
+        with open("DonneUtile.json","r") as rf:
             self.anne.update(json.load(rf))
         rf.close()
         os.chdir("..")
         self.Nomfichier=os.listdir("DonneJson")
         self.Nomfichier.sort(reverse=True)
-        self.create_widgets()
+        self.modeTransaction=False
+        self.main()
     #Fonction pour lire les fichiers json deja dans le module DataAcquisition
+    def main(self):
+        choice= messagebox.askyesno("askquestion","Les données seront chargées par lot et en mode transactionnel")
+        if choice :
+            self.modeTransaction=True
+            self.master.title("Data Loader : Mode Transanction=­OUI")
+            self.create_widgets()
+        else:
+            self.modeTransaction=False
+            self.master.title("Data Loader : Mode Transanction=­NON")
+            self.create_widgets("Non Transanction")
     def lireFichier(self):
-        label_welcome1 = tk.Label(self.master,text="Prévisualiser les données",
+        label_welcome1 = Label(self.master,text="Prévisualiser les données",
         borderwidth = 7,
         width = 40,
         relief="groove"
         )
-        label_welcome1.grid(row = 1, column = 0, pady = 2)
-        label_welcome2 = tk.Label(self.master,text="Selectionner le fichier pour la lecture")
-        label_welcome2.grid(row = 2, column = 0, pady =2 )
-        listbox = tk.Listbox(self.master, width=40, height=20,selectmode=tk.SINGLE)
+        label_welcome1.grid(row = 1, column = 0, padx = 50)
+        label_welcome2 = Label(self.master,text="Selectionner le fichier pour la lecture")
+        label_welcome2.grid(row = 2, column = 0, )
+        listbox = Listbox(self.master, width=40, height=20,selectmode=SINGLE)
         i=0
         for fichier in self.Nomfichier:
             if "2" in fichier:
@@ -64,33 +77,41 @@ class DataLoader(tk.Frame):
                 if  listbox.get(listbox.curselection()):
                     textes=afficherObjet(listbox.get(listbox.curselection()))
                     if textes:
-                        fil = tk.Toplevel(self.master)
+                        fil = Toplevel(self.master)
                         # fenetre blocante : empeche l’ouverture de fenetres identiques
                         self.master.wait_visibility(fil)
                         fil.grab_set()
                         # end fenetre blocante
                         fil.geometry("600x600")
                         fil.title("Fichier :"+listbox.get(listbox.curselection()))
-                        yscroll = tk.Scrollbar(fil)
-                        yscroll.pack(side=tk.RIGHT, fill=tk.Y)
-                        xscroll = tk.Scrollbar(fil, orient=tk.HORIZONTAL)
-                        xscroll.pack(side=tk.BOTTOM, fill=tk.X)
-                        text1 = tk.Text(fil,wrap=tk.NONE,height=30, width=100,yscrollcommand=yscroll.set,
+                        yscroll = Scrollbar(fil)
+                        yscroll.pack(side=RIGHT, fill=Y)
+                        xscroll = Scrollbar(fil, orient=HORIZONTAL)
+                        xscroll.pack(side=BOTTOM, fill=X)
+                        text1 = Text(fil,wrap=NONE,height=30, width=100,yscrollcommand=yscroll.set,
                         xscrollcommand=xscroll.set)  
                         text1.config(state="normal")
                         text1.insert("1.0",textes)   
-                        text1.pack(side=tk.LEFT) 
+                        text1.pack(side=LEFT) 
                         yscroll.config(command=text1.yview)   
                         xscroll.config(command=text1.xview)             
                         fil.mainloop()
                         fil.quit()
             except :
                 messagebox.showerror(title="Erreur !!!", message="Vous selectionner un fichier d`abord")
-        listbox.grid(row = 3, column = 0, pady =2 )
-        btn = tk.Button(root, text='Lire Le Fichier', command=selected_item)
+        listbox.grid(row = 3, column = 0, pady =20 )
+        btn = Button(root, text='Lire Le Fichier', command=selected_item)
         btn.grid(row = 3, column = 1, pady =6 )
-    #Fonction pour cocher les dates ensuite enregistrer vers la bases de donnee
-    def CaseCocher(self):  
+    #Fonction pour cocher les dates ensuite enregistrer vers la bases de donneef
+    def CaseCocher(self,mode="Transanction"): 
+        style = Style() 
+        style.configure('W.TButton', font =
+               ('calibri', 15, 'bold', 'underline'),
+                foreground = 'red')
+        style.configure('G.TButton', font =
+               ('calibri', 15, 'bold','underline'),
+                foreground = 'green')
+        #recuperer les ligne selectionnes 
         def getCheckDict(obj):
             selectDate={}
             for t in obj:
@@ -100,26 +121,28 @@ class DataLoader(tk.Frame):
                     selectDate[t[:7]]=[]
                     selectDate[t[:7]].append(t)
             return  selectDate
-        def hello():
+        def valider():
             if self.tree.get_checked():
                 #si il choisi oui (en transanction)
-                choice= messagebox.askyesnocancel("askquestion","Les données seront chargées par lot et en mode transactionnel ou pas")
-                dateselected= getCheckDict(self.tree.get_checked())
-                print( dateselected)
+                choice= messagebox.askyesno("Askquestion!!!","Vous etes sur pour la validation")
                 if choice==True:
-                    messagebox.showinfo("Info","Chargement des donne par lot et transaction")
-                else:
-                    #si il choisi no 
-                    if choice==False:
-                        messagebox.showinfo("Info","Chargement des donne par lot directement")
+                    db=DbDataloader(self.modeTransaction,self.master,getCheckDict(self.tree.get_checked()))
             else:
                 messagebox.showerror(title="Erreur !!!", message="Cocher une case au moins !!!")
-        label_welcomec = tk.Label(self.master,
+        def commit():
+            choice= messagebox.askyesno("Askquestion!!!","Vouliez-vouz faire un commit?")
+            if choice==True:
+                    messagebox.showinfo("Info","Mode Commit en cours")
+        def roolback():
+            choice= messagebox.askyesno("Askquestion!!!","Vouliez-vouz faire un roolback?")
+            if choice==True:
+                    messagebox.showinfo("Info","Mode roolback en cours ")
+        label_welcomec = Label(self.master,
         text="La liste des fichiers json obtenus avec leur arborescence",
         borderwidth = 7,
         relief="groove")
         label_welcomec.grid(row = 1, column = 3, pady = 8)
-        vsb = tk.Scrollbar(self.master, orient="vertical", command=self.tree.yview)
+        vsb = Scrollbar(self.master, orient="vertical", command=self.tree.yview)
         vsb.place(relx=0.978, rely=0.175, relheight=0.713, relwidth=0.020)
         self.tree.configure(yscrollcommand=vsb.set)
         self.tree.insert("", "end", "ALL", text="SELECT ALL")
@@ -128,14 +151,20 @@ class DataLoader(tk.Frame):
             for i in val:
                 self.tree.insert(key,"end", i, text=i)
         self.tree.grid(row = 3, column = 3, pady = 2)
-        button_name=tk.Button(self.master,text="Enregistrer les donnees",command=hello,activeforeground = "blue",
-        activebackground = "red",width=20)
+        button_name=Button(self.master,text="Valider",command=valider)
         button_name.grid(row = 3, column = 4, pady = 2)
-    def create_widgets(self):
+        if mode=="Transanction":
+            commit_buttoon_name=Button(self.master,text="COMMIT",command=commit,style="G.TButton"
+            )
+            commit_buttoon_name.grid(row = 4, column = 3, pady = 2)
+            rollback_buttoon_name=Button(self.master, text = 'ROOLBACK !',
+            style = 'W.TButton',command=roolback)
+            rollback_buttoon_name.grid(row = 4, column = 4, pady = 2)
+    def create_widgets(self,mode="Transanction"):
         self.lireFichier()
-        self.CaseCocher()
+        self.CaseCocher(mode)
 if __name__ == '__main__':
-    root = tk.Tk()
+    root = Tk()
     app = DataLoader(master=root)
     app.mainloop()
     root.quit()
