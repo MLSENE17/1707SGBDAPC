@@ -25,9 +25,10 @@ class DataLoader(Frame):
         self.main()
     #Fonction pour lire les fichiers json deja dans le module DataAcquisition
     def main(self):
-        choice= messagebox.askyesno("askquestion","Les données seront chargées par lot et en mode transactionnel")
+        choice= messagebox.askyesno("askquestion","Cliquer sur Oui pour charger les données en mode Trasactionnel")
         if choice :
             self.modeTransaction=True
+            self.db.conn.start_transaction()
             self.master.title("Data Loader : Mode Transanction=­OUI")
             self.create_widgets()
         else:
@@ -129,21 +130,25 @@ class DataLoader(Frame):
                 if choice==True:
                     self.db.Alldayselected =getCheckDict(self.tree.get_checked())
                     if self.modeTransaction == False:
-                        #Mode lot
-                        self.db.insertParLot()
+                        #Mode Non Transactionnel
+                        self.db.insertCommunique()
                     else:
                         #Mode Transaction
-                        pass
+                        self.db.insertCommunique()       
             else:
                 messagebox.showerror(title="Erreur !!!", message="Cocher une case au moins !!!")
         def commit():
             choice= messagebox.askyesno("Askquestion!!!","Vouliez-vouz faire un commit?")
             if choice==True:
                     messagebox.showinfo("Info","Mode Commit en cours")
+                    self.db.conn.commit()
+                    self.db.conn.start_transaction()
         def roolback():
             choice= messagebox.askyesno("Askquestion!!!","Vouliez-vouz faire un roolback?")
             if choice==True:
                     messagebox.showinfo("Info","Mode roolback en cours ")
+                    self.db.conn.rollback()
+                    self.db.conn.start_transaction()
         label_welcomec = Label(self.master,
         text="La liste des fichiers json obtenus avec leur arborescence",
         borderwidth = 7,
@@ -170,8 +175,11 @@ class DataLoader(Frame):
     def create_widgets(self,mode="Transanction"):
         self.lireFichier()
         self.CaseCocher(mode)
+    def mains(self,obj):
+        obj.mainloop()
+        obj.db.conn.rollback()
 if __name__ == '__main__':
     root = Tk()
     app = DataLoader(master=root)
-    app.mainloop()
+    app.mains(app)
     root.quit()

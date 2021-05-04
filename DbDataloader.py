@@ -20,6 +20,7 @@ class DbDataloader:
         self.donne={}
         self.modeTransaction=modeTransaction
     def getAllDonneSelected(self):
+        self.donneJsonselected={}
         os.chdir("DonneJson")
         for keys,vals in self.Alldayselected.items():
             nomfichier=keys+".json"
@@ -43,20 +44,21 @@ class DbDataloader:
                     self.donneJsonselected[day]["localite"]=self.localite
         os.chdir("..")
         return self.donneJsonselected
-        #connected to database
+    #connected to database
     def dbConnect(self):
         try:
-                conn= db.connect(host= "localhost",
-                                            user="admin_CovidModeler",
-                                            password="dic2tr",
-                                            database="covidModeler")
+            conn= db.connect(host= "localhost",
+                                        user="admin_CovidModeler",
+                                        password="dic2tr",
+                                        database="covidModeler")
+            conn.autocommit= True
+            return conn
         except db.errors.InterfaceError as e:
-                print("Error %d: %s" % (e.args[0],e.args[1]))
-                sys.exit(1)
-        return conn
+            print("Error %d: %s" % (e.args[0],e.args[1]))
+            sys.exit(1)
         
-        #Enregistrement par lot
-    def insertParLot(self):
+    #Enregistrement Des Donnees dans la base
+    def insertCommunique(self):
         for key, val in self.getAllDonneSelected().items():
             curseur= self.conn.cursor()
             request= "SELECT * FROM communique WHERE date_communique= %s"
@@ -68,21 +70,61 @@ class DbDataloader:
                 choix= messagebox.askyesno("Askquestion", "Cliquer Oui pour Ecrasez Non Ignorez")
                 if choix == True:
                     #Ecraser données
-                    pass
+                    self.deleteCommunique(key)
+                    self.insertInToCommunique(val, key)
+                    self.insertInToCasLocalite(val["localite"], key)
+                    
             else:
                 #Enregistrez données dans la base
-                request= """INSERT INTO communique(nbre_test, nbre_nouveaux_cas, nbre_cas_contact, nbre_cas_communautaires,
-                                                    nbre_gueris, nbre_deces, nom_fichier_source, 
-                                                    date_heure_extraction, date_communique)
-                                                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)"""
-                nouveauCas=val["nbrecommunautaire"]+val["nbrecontact"]
-                value=(val["nbretest"], nouveauCas, val["nbrecontact"], val["nbrecommunautaire"], val["nbregueris"], val["nbredeces"], val["nomfichiersource"], val["date_heure_extraction"], key)
-                curseur.execute(request, value)
-                self.conn.commit()
-                self.insertCasLocalite(val["localite"], key)
+                self.insertInToCommunique(val, key)
+                self.insertInToCasLocalite(val["localite"], key)
+
             curseur.close()
+
+    #Enregistrement mode Transactionnel
+    """def insertTransactionnel(self):
+        #self.conn.start_transaction()
+        for key, val in self.getAllDonneSelected().items():
+            curseur= self.conn.cursor()
+            request= "SELECT * FROM communique WHERE date_communique= %s"
+            date=(key,)
+            curseur.execute(request, date)
+            result=curseur.fetchall()
+            if result:
+                #communique existe(Ecraser ou Ignorer)
+                choix= messagebox.askyesno("Askquestion", "Cliquer Oui pour Ecrasez Non Ignorez")
+                if choix == True:
+                    #Ecraser données
+                    self.deleteCommunique(key)
+                    self.insertInToCommunique(val, key)
+                    self.insertInToCasLocalite(val["localite"], key)
+                    
+            else:
+                #Enregistrez données dans la base
+                self.insertInToCommunique(val, key)
+                self.insertInToCasLocalite(val["localite"], key)
+
+            curseur.close()"""
+
     #inserer cas par localite
-    def insertCasLocalite(self, localite, dateCommunique):
+    def insertInToCommunique(self, val, dateCommunique):
+        curseur= self.conn.cursor()
+        try:
+            request= """INSERT INTO communique(nbre_test, nbre_nouveaux_cas, nbre_cas_contact, nbre_cas_communautaires,
+                                                nbre_gueris, nbre_deces, nom_fichier_source, 
+                                                date_heure_extraction, date_communique)
+                                                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)"""
+            nouveauCas=val["nbrecommunautaire"]+val["nbrecontact"]
+            value=(val["nbretest"], nouveauCas, val["nbrecontact"], val["nbrecommunautaire"], val["nbregueris"], val["nbredeces"], val["nomfichiersource"], val["date_heure_extraction"], dateCommunique)
+            curseur.execute(request, value)
+        except Exception as e:
+            print(e)
+            messagebox.showerror(title="Erreur d'insertion !!!", message="Fichier "+dateCommunique)
+                
+        curseur.close()
+
+    def insertInToCasLocalite(self, localite, dateCommunique):
+        #self.conn.autocommit = autocommit
         curseur= self.conn.cursor()
         for key, val in localite.items():
             request= "SELECT commune_id, depart_id FROM commune WHERE nom_localite like %s"
@@ -92,22 +134,47 @@ class DbDataloader:
             if result:
                 commune_id= result[0]
                 depart_id= result[1]
-                request= """INSERT INTO cas_localite(commune_id, depart_id, nbre_cas, date_communique)
-                                                    VALUES(%s, %s, %s, %s)"""
-                value=(commune_id, depart_id, val, dateCommunique)
-                curseur.execute(request, value)
-                self.conn.commit()
+                try:
+                    request= """INSERT INTO cas_localite(commune_id, depart_id, nbre_cas, date_communique)
+                                                        VALUES(%s, %s, %s, %s)"""
+                    value=(commune_id, depart_id, val, dateCommunique)
+                    
+                    curseur.execute(request, value)
+                except Exception as e:
+                    print(e)
+                    messagebox.showerror(title="Erreur d'insertion !!!", message="Fichier "+dateCommunique+" localite "+nom_localite)
+                
             else:
                 request= "SELECT depart_id FROM departement WHERE nom_localite like %s"
                 nom_localite=(key, )
                 curseur.execute(request, nom_localite)
                 result=curseur.fetchone()
                 depart_id= result[0]
-                request= """INSERT INTO cas_localite(depart_id, nbre_cas, date_communique)
-                                                    VALUES(%s, %s, %s)"""
-                value=(depart_id, val, dateCommunique)
-                curseur.execute(request, value)
-                self.conn.commit()
+                try:
+                    request= """INSERT INTO cas_localite(depart_id, nbre_cas, date_communique)
+                                                        VALUES(%s, %s, %s)"""
+                    value=(depart_id, val, dateCommunique)
+                    curseur.execute(request, value)
+                except:
+                    print(e)
+                    messagebox.showerror(title="Erreur d'insertion !!!", message="Fichier "+dateCommunique+" localite "+nom_localite)
+                
+                
+        curseur.close()
+    
+    #Supprimer Communique
+    def deleteCommunique(self, dateCommunique):
+        curseur= self.conn.cursor()
+        #Delete From table cas_localite
+        request= """DELETE FROM cas_localite WHERE date_communique= %s"""
+        date=(dateCommunique,)
+        curseur.execute(request, date)
+
+        #Delete from table communique
+        request= """DELETE FROM communique WHERE date_communique= %s"""
+        date=(dateCommunique,)
+        curseur.execute(request, date)
+
         curseur.close()
 
 
