@@ -81,45 +81,20 @@ class DbDataloader:
 
             curseur.close()
 
-    #Enregistrement mode Transactionnel
-    """def insertTransactionnel(self):
-        #self.conn.start_transaction()
-        for key, val in self.getAllDonneSelected().items():
-            curseur= self.conn.cursor()
-            request= "SELECT * FROM communique WHERE date_communique= %s"
-            date=(key,)
-            curseur.execute(request, date)
-            result=curseur.fetchall()
-            if result:
-                #communique existe(Ecraser ou Ignorer)
-                choix= messagebox.askyesno("Askquestion", "Cliquer Oui pour Ecrasez Non Ignorez")
-                if choix == True:
-                    #Ecraser données
-                    self.deleteCommunique(key)
-                    self.insertInToCommunique(val, key)
-                    self.insertInToCasLocalite(val["localite"], key)
-                    
-            else:
-                #Enregistrez données dans la base
-                self.insertInToCommunique(val, key)
-                self.insertInToCasLocalite(val["localite"], key)
-
-            curseur.close()"""
-
     #inserer cas par localite
     def insertInToCommunique(self, val, dateCommunique):
         curseur= self.conn.cursor()
         try:
-            request= """INSERT INTO communique(nbre_test, nbre_nouveaux_cas, nbre_cas_contact, nbre_cas_communautaires,
+            request= """INSERT INTO communique(nbre_test, nbre_nouveaux_cas, nbre_cas_contact, nbre_cas_communautaires,nbre_cas_importe,
                                                 nbre_gueris, nbre_deces, nom_fichier_source, 
                                                 date_heure_extraction, date_communique)
-                                                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)"""
-            nouveauCas=val["nbrecommunautaire"]+val["nbrecontact"]
-            value=(val["nbretest"], nouveauCas, val["nbrecontact"], val["nbrecommunautaire"], val["nbregueris"], val["nbredeces"], val["nomfichiersource"], val["date_heure_extraction"], dateCommunique)
+                                                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)"""
+            value=(val["nbretest"], val["nouveaucas"], val["nbrecontact"], val["nbrecommunautaire"], val["nbreimporte"], val["nbregueris"], val["nbredeces"], val["nomfichiersource"], val["date_heure_extraction"], dateCommunique)
             curseur.execute(request, value)
         except Exception as e:
             print(e)
-            messagebox.showerror(title="Erreur d'insertion !!!", message="Fichier "+dateCommunique)
+            message="Date "+dateCommunique
+            messagebox.showerror("Erreur d'insertion !!!", message)
                 
         curseur.close()
 
