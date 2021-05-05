@@ -19,8 +19,9 @@ class EvolutionAnalyser(Frame):
         self.master.minsize(500,300)
         self.master.resizable(width=True,height=True)
         self.db=DbEA()
-        self.create_widgets()
         self.ville=self.db.getDict()
+        self.create_widgets()
+        print(self.ville)
     """
         Creation des widgets()
     """

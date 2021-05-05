@@ -2,6 +2,7 @@
     MamadouLAMINESENE
     ML__SENE___17
 """
+from donne_EvolutionAnalyzer import *
 class DbEA:
     def __init__(self):
         pass
@@ -10,11 +11,12 @@ class DbEA:
         et leur department
     """
     def getDict(self):
-        region,departement=4,5
+        region,departement=dicoRegion_Departement()
         donne={}
         for key,val in region.items():
             donne[key]=[]
             for keyFils,valFils in departement.items():
                 if val==valFils:
                     donne[key].append(keyFils)
+        
         return donne
